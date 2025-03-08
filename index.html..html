@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo de Corrida</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            background-color: #87CEEB;
+            display: block;
+            margin: 0 auto;
+            border: 2px solid black;
+        }
+        .player {
+            position: absolute;
+            bottom: 20px;
+            left: 50px;
+            width: 50px;
+            height: 50px;
+            background-color: #FF6347;
+            border-radius: 50%;
+        }
+        .enemy {
+            position: absolute;
+            bottom: 20px;
+            width: 50px;
+            height: 50px;
+            background-color: #00FF00;
+            border-radius: 50%;
+        }
+        .obstacle {
+            position: absolute;
+            bottom: 0;
+            width: 60px;
+            height: 20px;
+            background-color: #8B4513; /* cor para o obstáculo */
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <script>
+        // Definindo o canvas
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Variáveis do jogador
+        let player = {
+            x: 50,
+            y: canvas.height - 70,
+            width: 50,
+            height: 50,
+            speed: 5,
+            dx: 0,
+            dy: 0,
+            gravity: 0.8,
+            jumpPower: 15,
+            jumping: false,
+        };
+
+        // Obstáculos e inimigos
+        let obstacles = [];
+        let enemies = [];
+        let obstacleSpeed = 2;
+        let enemySpeed = 3;
+        let enemyFrequency = 100; // chance de criação de inimigos
+
+        // Variáveis para movimento
+        let rightPressed = false;
+        let leftPressed = false;
+        let upPressed = false;
+
+        let distance = 0; // distância percorrida
+        let gameSpeed = 3; // velocidade do cenário
+
+        // Função para desenhar o jogador
+        function drawPlayer() {
+            ctx.fillStyle = '#FF6347';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+        }
+
+        // Função para desenhar os obstáculos
+        function drawObstacles() {
+            obstacles.forEach(obstacle => {
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+        }
+
+        // Função para desenhar os inimigos
+        function drawEnemies() {
+            enemies.forEach(enemy => {
+                ctx.fillStyle = '#00FF00';
+                ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+            });
+        }
+
+        // Função de movimento do jogador
+        function movePlayer() {
+            if (rightPressed && player.x + player.width < canvas.width) {
+                player.x += player.speed;
+            }
+            if (leftPressed && player.x > 0) {
+                player.x -= player.speed;
+            }
+            if (upPressed && !player.jumping) {
+                player.dy = -player.jumpPower;
+                player.jumping = true;
+            }
+            // Aplicar gravidade
+            if (player.y + player.height < canvas.height) {
+                player.dy += player.gravity;
+            } else {
+                player.dy = 0;
+                player.y = canvas.height - player.height;
+                player.jumping = false;
+            }
+            player.y += player.dy;
+        }
+
+        // Função para mover obstáculos e inimigos
+        function moveObstaclesAndEnemies() {
+            obstacles.forEach((obstacle, index) => {
+                obstacle.x -= gameSpeed;
+                if (obstacle.x + obstacle.width < 0) {
+                    obstacles.splice(index, 1);
+                }
+            });
+
+            enemies.forEach((enemy, index) => {
+                enemy.x -= enemySpeed;
+                if (enemy.x + enemy.width < 0) {
+                    enemies.splice(index, 1);
+                }
+            });
+        }
+
+        // Função para gerar novos obstáculos
+        function createObstacle() {
+            let obstacleY = canvas.height - 50; // Posição do obstáculo
+            let obstacleX = canvas.width;
+            let obstacle = {
+                x: obstacleX,
+                y: obstacleY,
+                width: 60,
+                height: 20
+            };
+            obstacles.push(obstacle);
+        }
+
+        // Função para gerar novos inimigos
+        function createEnemy() {
+            let enemyY = canvas.height - 70;  // Inimigo no chão
+            let enemyX = canvas.width;
+            let enemy = {
+                x: enemyX,
+                y: enemyY,
+                width: 50,
+                height: 50
+            };
+            enemies.push(enemy);
+        }
+
+        // Função para detectar colisões
+        function detectCollisions() {
+            // Colisão com obstáculos
+            obstacles.forEach(obstacle => {
+                if (player.x + player.width > obstacle.x && player.x < obstacle.x + obstacle.width &&
+                    player.y + player.height > obstacle.y) {
+                    player.y = obstacle.y - player.height;  // Colisão com o topo do obstáculo
+                    player.dy = 0;  // Para a queda do jogador
+                    player.jumping = false;
+                }
+            });
+
+            // Colisão com inimigos
+            enemies.forEach((enemy, index) => {
+                if (player.x < enemy.x + enemy.width &&
+                    player.x + player.width > enemy.x &&
+                    player.y < enemy.y + enemy.height &&
+                    player.y + player.height > enemy.y) {
+                    alert('Você foi atingido pelos inimigos!');
+                    resetGame();
+                }
+            });
+        }
+
+        // Função para atualizar o jogo
+        function updateGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpa a tela
+
+            movePlayer(); // Atualiza a posição do jogador
+            moveObstaclesAndEnemies(); // Move obstáculos e inimigos
+            detectCollisions(); // Verifica colisões
+
+            drawObstacles(); // Desenha os obstáculos
+            drawPlayer(); // Desenha o jogador
+            drawEnemies(); // Desenha os inimigos
+
+            // Gerar novos obstáculos e inimigos com base na distância
+            if (Math.random() < 1 / (enemyFrequency + distance / 1000)) {
+                createEnemy();
+            }
+
+            if (Math.random() < 1 / (distance / 300)) {
+                createObstacle();
+            }
+
+            // Aumentar a velocidade do jogo à medida que o jogador avança
+            distance += gameSpeed;
+            if (distance % 1000 === 0) {  // A cada 1000 pixels
+                enemySpeed += 0.5;  // Aumenta a velocidade dos inimigos
+                gameSpeed += 0.2;  // Aumenta a velocidade do jogo
+            }
+
+            requestAnimationFrame(updateGame); // Atualiza o jogo
+        }
+
+        // Funções de controle de teclas
+        function keyDownHandler(e) {
+            if (e.key == 'ArrowRight') {
+                rightPressed = true;
+            } else if (e.key == 'ArrowLeft') {
+                leftPressed = true;
+            } else if (e.key == ' ' && !player.jumping) { // Tecla de espaço para pular
+                upPressed = true;
+            }
+        }
+
+        function keyUpHandler(e) {
+            if (e.key == 'ArrowRight') {
+                rightPressed = false;
+            } else if (e.key == 'ArrowLeft') {
+                leftPressed = false;
+            } else if (e.key == ' ') {
+                upPressed = false;
+            }
+        }
+
+        // Função para resetar o jogo
+        function resetGame() {
+            player.x = 50;
+            player.y = canvas.height - 70;
+            player.dy = 0;
+            obstacles = [];
+            enemies = [];
+            distance = 0;
+            gameSpeed = 3;
+            enemySpeed = 3;
+            updateGame(); // Reinicia o jogo
+        }
+
+        // Configuração de eventos de teclado
+        document.addEventListener("keydown", keyDownHandler, false);
+        document.addEventListener("keyup", keyUpHandler, false);
+
+        // Começar o jogo
+        updateGame();
+    </script>
+</body>
+</html>
